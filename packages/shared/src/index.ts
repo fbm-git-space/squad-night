@@ -77,8 +77,8 @@ export const GAMES = [
     id: "touchline",
     name: "Touchline Clues",
     description: "Word guessing with football names. Clues on party chat — managers see colours, team taps words.",
-    minPlayers: 2,
-    maxPlayers: 12,
+    minPlayers: 4,
+    maxPlayers: 8,
   },
 ] as const;
 

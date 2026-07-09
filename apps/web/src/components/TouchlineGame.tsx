@@ -102,11 +102,6 @@ export function TouchlineGame({
           <p className="text-sm text-white/60">
             You see every word&apos;s colour. Study the board, then when ready let your team know on party chat and start the clue phase.
           </p>
-          {view.soloTeam && (
-            <p className="text-sm text-gold/80">
-              Two-player mode: you&apos;ll also tap guesses for your team after giving a clue.
-            </p>
-          )}
           <button className="btn-primary w-full" onClick={() => onAction({ type: "ready" })}>
             Ready — start my turn
           </button>
@@ -165,12 +160,7 @@ export function TouchlineGame({
 
       {view.phase === "guessing" && view.canGuess && (
         <div className="card-surface p-3 text-center bg-gold/10 border border-gold/30">
-          <p className="text-sm font-semibold text-gold">
-            {view.soloTeam ? "Your turn — tap words on the board" : "Tap a word to guess"}
-          </p>
-          {view.soloTeam && (
-            <p className="text-xs text-white/50 mt-1">Colours hidden — you&apos;re guessing now</p>
-          )}
+          <p className="text-sm font-semibold text-gold">Tap a word to guess</p>
         </div>
       )}
 
@@ -234,9 +224,6 @@ function ClueBanner({
       <p className="text-sm text-white/50">
         {view.guessesRemaining} tap{view.guessesRemaining !== 1 ? "s" : ""} left
       </p>
-      {view.soloTeam && view.canAct && (
-        <p className="text-xs text-white/40">Colours hidden while you guess</p>
-      )}
       {view.canAct && view.role === "operative" && (
         <p className="text-xs text-pitch-light">Discuss on party chat, then tap a word</p>
       )}

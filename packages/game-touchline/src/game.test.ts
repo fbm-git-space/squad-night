@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { initTouchline, reduceTouchline, getTouchlineView } from "./index.js";
 import type { Player } from "@party/shared";
-import { createGrid, validateClue, isOperativeTurn, teamHasOperatives } from "./types.js";
+import { createGrid, validateClue, isOperativeTurn } from "./types.js";
 
 const mockPlayers: Player[] = [
   { id: "p1", name: "Alice", color: "#E63946", isHost: true, connected: true },
@@ -9,8 +9,6 @@ const mockPlayers: Player[] = [
   { id: "p3", name: "Carol", color: "#2A9D8F", isHost: false, connected: true },
   { id: "p4", name: "Dave", color: "#E9C46A", isHost: false, connected: true },
 ];
-
-const twoPlayers: Player[] = mockPlayers.slice(0, 2);
 
 describe("validateClue", () => {
   it("rejects empty clues", () => {
@@ -44,81 +42,13 @@ describe("initTouchline", () => {
     expect(state.awayManagerId).toBeTruthy();
   });
 
-  it("works with two players", () => {
+  it("assigns one manager and one operative per team with four players", () => {
     const state = initTouchline({
-      players: twoPlayers,
+      players: mockPlayers,
       config: { wordPackId: "legends" },
     });
-    expect(state.homeTeamIds).toHaveLength(1);
-    expect(state.awayTeamIds).toHaveLength(1);
-    expect(teamHasOperatives(state, "home")).toBe(false);
-    expect(teamHasOperatives(state, "away")).toBe(false);
-  });
-});
-
-describe("two-player mode", () => {
-  it("allows solo manager to guess after giving a clue", () => {
-    const state = initTouchline({
-      players: twoPlayers,
-      config: { wordPackId: "legends" },
-    });
-    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    expect(isOperativeTurn(s, state.homeManagerId)).toBe(true);
-  });
-
-  it("allows voice clue without a typed word", () => {
-    const state = initTouchline({
-      players: twoPlayers,
-      config: { wordPackId: "legends" },
-    });
-    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    s = reduceTouchline(s, { type: "give_clue", word: "", count: 2 }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    expect(s.phase).toBe("guessing");
-    expect(s.currentClue?.word).toBe("");
-    expect(s.currentClue?.count).toBe(2);
-  });
-
-  it("shows operative role when solo manager is guessing", () => {
-    const state = initTouchline({
-      players: twoPlayers,
-      config: { wordPackId: "legends" },
-    });
-    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    s = reduceTouchline(s, { type: "give_clue", word: "", count: 2 }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    const view = getTouchlineView(s, state.homeManagerId, twoPlayers);
-    expect(view.role).toBe("operative");
-    expect(view.canGuess).toBe(true);
-    expect(view.canSeeColors).toBe(false);
-  });
-
-  it("assassin hit by home team gives away the win", () => {
-    const state = initTouchline({
-      players: twoPlayers,
-      config: { wordPackId: "legends" },
-    });
-    const assassinCard = state.grid.find((c) => c.type === "assassin");
-    expect(assassinCard).toBeDefined();
-
-    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
-    if ("error" in s) throw new Error(s.error);
-    const result = reduceTouchline(
-      s,
-      { type: "guess", cardId: assassinCard!.id },
-      state.homeManagerId
-    );
-    if ("error" in result) throw new Error(result.error);
-    expect(result.phase).toBe("finished");
-    expect(result.winner).toBe("away");
-    expect(result.turnMessage).toContain("Home hit the assassin");
+    expect(state.homeTeamIds).toHaveLength(2);
+    expect(state.awayTeamIds).toHaveLength(2);
   });
 });
 
@@ -135,6 +65,15 @@ describe("reduceTouchline", () => {
     }
   });
 
+  it("rejects ready from away manager during home briefing", () => {
+    const state = initTouchline({
+      players: mockPlayers,
+      config: { wordPackId: "legends" },
+    });
+    const result = reduceTouchline(state, { type: "ready" }, state.awayManagerId);
+    expect("error" in result).toBe(true);
+  });
+
   it("rejects clue from wrong team manager", () => {
     const state = initTouchline({
       players: mockPlayers,
@@ -148,5 +87,58 @@ describe("reduceTouchline", () => {
       state.awayManagerId
     );
     expect("error" in result).toBe(true);
+  });
+
+  it("allows voice clue without a typed word", () => {
+    const state = initTouchline({
+      players: mockPlayers,
+      config: { wordPackId: "legends" },
+    });
+    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    s = reduceTouchline(s, { type: "give_clue", word: "", count: 2 }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    expect(s.phase).toBe("guessing");
+    expect(s.currentClue?.word).toBe("");
+    expect(s.currentClue?.count).toBe(2);
+  });
+
+  it("only operatives can guess", () => {
+    const state = initTouchline({
+      players: mockPlayers,
+      config: { wordPackId: "legends" },
+    });
+    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    expect(isOperativeTurn(s, state.homeManagerId)).toBe(false);
+    const operativeId = state.homeTeamIds.find((id) => id !== state.homeManagerId);
+    expect(operativeId).toBeTruthy();
+    expect(isOperativeTurn(s, operativeId!)).toBe(true);
+  });
+
+  it("assassin hit by home team gives away the win", () => {
+    const state = initTouchline({
+      players: mockPlayers,
+      config: { wordPackId: "legends" },
+    });
+    const assassinCard = state.grid.find((c) => c.type === "assassin");
+    expect(assassinCard).toBeDefined();
+
+    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    const operativeId = state.homeTeamIds.find((id) => id !== state.homeManagerId)!;
+    const result = reduceTouchline(
+      s,
+      { type: "guess", cardId: assassinCard!.id },
+      operativeId
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.phase).toBe("finished");
+    expect(result.winner).toBe("away");
+    expect(result.turnMessage).toContain("Home hit the assassin");
   });
 });

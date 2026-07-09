@@ -7,7 +7,6 @@ import {
   getPlayerTeam,
   isManagerTurn,
   isOperativeTurn,
-  teamHasOperatives,
   validateClue,
   type GridCard,
   type TouchlineAction,
@@ -253,11 +252,7 @@ export function getTouchlineView(
   const team = getPlayerTeam(state, playerId);
   const pack = getWordPack(state.wordPackId);
   const isManager = role === "manager";
-  const soloTeam = isManager && team !== null && !teamHasOperatives(state, team);
-  const soloManagerGuessing =
-    soloTeam && state.phase === "guessing" && team === state.currentTeam;
-  const showTypes =
-    (isManager && !soloManagerGuessing) || state.phase === "finished";
+  const showTypes = isManager || state.phase === "finished";
 
   const homeManager = players.find((p) => p.id === state.homeManagerId);
   const awayManager = players.find((p) => p.id === state.awayManagerId);
@@ -271,14 +266,10 @@ export function getTouchlineView(
 
   const canGiveClue = isManagerTurn(state, playerId);
   const canGuess = isOperativeTurn(state, playerId);
-  const soloGuessing = soloTeam && canGuess;
-  const displayRole: TouchlineView["role"] =
-    soloGuessing ? "operative" : role === "manager" ? "manager" : role === "operative" ? "operative" : "spectator";
-  const canSeeColors = isManager && !soloManagerGuessing;
 
   return {
     phase: state.phase,
-    role: displayRole,
+    role,
     team,
     grid,
     homeRemaining: state.homeRemaining,
@@ -293,9 +284,8 @@ export function getTouchlineView(
     lastGuessCardId: state.lastGuessCardId,
     canAct: canGiveClue || canGuess,
     canGuess,
-    canSeeColors,
+    canSeeColors: isManager,
     wordPackName: pack?.name ?? state.wordPackId,
-    soloTeam,
   };
 }
 
@@ -306,8 +296,8 @@ export function isTouchlineFinished(state: TouchlineState): boolean {
 registerGame({
   id: "touchline",
   name: "Touchline Clues",
-  minPlayers: 2,
-  maxPlayers: 12,
+  minPlayers: 4,
+  maxPlayers: 8,
   init: initTouchline,
   reduce: reduceTouchline,
   getView: (state, playerId) => {

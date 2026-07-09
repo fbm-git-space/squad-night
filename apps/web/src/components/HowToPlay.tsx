@@ -80,7 +80,7 @@ export function HowToPlay({ compact = false, embedded = false }: HowToPlayProps)
       <section className="space-y-2">
         <p className="font-semibold text-white/90">Roles</p>
         <ul className="space-y-1 list-disc list-inside marker:text-pitch-light">
-          <li><span className="text-home">Manager</span> — sees the full board with colours. Gives clues, never guesses (unless two-player mode).</li>
+          <li><span className="text-home">Manager</span> — sees the full board with colours. Gives clues; operatives tap words.</li>
           <li><span className="text-white/90">Operatives</span> — see words only. Tap the ones they think match the clue.</li>
         </ul>
       </section>

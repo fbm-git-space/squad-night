@@ -67,7 +67,6 @@ export interface TouchlineView {
   canGuess: boolean;
   canSeeColors: boolean;
   wordPackName: string;
-  soloTeam: boolean;
 }
 
 export const HOME_WORD_COUNT = 9;
@@ -116,12 +115,6 @@ export function getPlayerTeam(
   return null;
 }
 
-export function teamHasOperatives(state: TouchlineState, team: TeamId): boolean {
-  const teamIds = team === "home" ? state.homeTeamIds : state.awayTeamIds;
-  const managerId = team === "home" ? state.homeManagerId : state.awayManagerId;
-  return teamIds.some((id) => id !== managerId);
-}
-
 export function isManagerTurn(state: TouchlineState, playerId: string): boolean {
   const role = getPlayerRole(state, playerId);
   if (role !== "manager") return false;
@@ -133,13 +126,7 @@ export function isOperativeTurn(state: TouchlineState, playerId: string): boolea
   const team = getPlayerTeam(state, playerId);
   if (state.phase !== "guessing" || state.guessesRemaining <= 0) return false;
   if (team !== state.currentTeam) return false;
-
-  const role = getPlayerRole(state, playerId);
-  if (role === "operative") return true;
-
-  // Two-player mode: manager also guesses when alone on their team
-  if (role === "manager" && team && !teamHasOperatives(state, team)) return true;
-  return false;
+  return getPlayerRole(state, playerId) === "operative";
 }
 
 export function validateClue(clueWord: string, grid: GridCard[]): string | null {
