@@ -110,9 +110,13 @@ export function initTouchlineCoop(context: GameContext): TouchlineState {
   const wordPackId = (context.config.wordPackId as string) ?? "legends";
   const words = pickWords(wordPackId, GRID_SIZE);
   const grid = createGrid(words);
-  const shuffled = [...context.players].sort(() => Math.random() - 0.5);
-  const manager = shuffled[0];
-  const operative = shuffled[1];
+
+  const managerId = context.config.coopManagerId as string | undefined;
+  const manager = context.players.find((p) => p.id === managerId);
+  const operative = context.players.find((p) => p.id !== manager?.id);
+  if (!manager || !operative) {
+    throw new Error("Co-op manager and partner must both be in the room");
+  }
 
   return buildBaseState(
     wordPackId,

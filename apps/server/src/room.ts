@@ -17,6 +17,8 @@ interface RoomState {
   players: Map<string, Player>;
   connections: Map<string, string>;
   hostId: string | null;
+  /** Room creator — regains host on reconnect when possible. */
+  founderId: string | null;
   settings: RoomSettings;
   gameState: unknown | null;
 }
@@ -33,7 +35,8 @@ export class GameRoom {
       players: new Map(),
       connections: new Map(),
       hostId: null,
-      settings: { gameId: "touchline", wordPackId: "legends" },
+      founderId: null,
+      settings: { gameId: "touchline", wordPackId: "legends", coopManagerId: null },
       gameState: null,
     };
   }
@@ -63,7 +66,7 @@ export class GameRoom {
   handleMessage(socket: Socket, parsed: ClientMessage): void {
     switch (parsed.type) {
       case "join":
-        this.handleJoin(socket, parsed.playerId, parsed.name);
+        this.handleJoin(socket, parsed.playerId, parsed.name, parsed.claimHost);
         break;
       case "leave":
         this.handleLeave(socket);
@@ -85,7 +88,22 @@ export class GameRoom {
     }
   }
 
+  private syncHostFlags(): void {
+    for (const p of this.state.players.values()) {
+      p.isHost = p.id === this.state.hostId;
+    }
+  }
+
   private assignHost(): void {
+    if (this.state.founderId) {
+      const founder = this.state.players.get(this.state.founderId);
+      if (founder?.connected) {
+        this.state.hostId = founder.id;
+        this.syncHostFlags();
+        return;
+      }
+    }
+
     for (const p of this.state.players.values()) {
       p.isHost = false;
     }
@@ -94,11 +112,24 @@ export class GameRoom {
       this.state.hostId = null;
       return;
     }
-    connected[0].isHost = true;
     this.state.hostId = connected[0].id;
+    connected[0].isHost = true;
   }
 
-  private handleJoin(socket: Socket, existingId?: string, name?: string): void {
+  private setRoomHost(playerId: string, asFounder: boolean): void {
+    if (asFounder) {
+      this.state.founderId = playerId;
+    }
+    this.state.hostId = playerId;
+    this.syncHostFlags();
+  }
+
+  private handleJoin(
+    socket: Socket,
+    existingId?: string,
+    name?: string,
+    claimHost?: boolean
+  ): void {
     const displayName = name?.trim().slice(0, 20);
     if (!displayName) {
       this.sendError(socket, "Name is required");
@@ -111,6 +142,7 @@ export class GameRoom {
     if (player && player.name === displayName) {
       player.connected = true;
       this.state.connections.set(socket.id, player.id);
+      playerId = player.id;
     } else {
       playerId = generatePlayerId();
       const usedColors = [...this.state.players.values()].map((p) => p.color);
@@ -120,21 +152,29 @@ export class GameRoom {
         id: playerId,
         name: displayName,
         color: pickPlayerColor(usedColors),
-        isHost: isFirst,
+        isHost: false,
         connected: true,
       };
 
       this.state.players.set(playerId, player);
       this.state.connections.set(socket.id, playerId);
 
-      if (isFirst) {
-        this.state.hostId = playerId;
+      if (isFirst && !this.state.founderId && !claimHost) {
+        this.setRoomHost(playerId, true);
       }
     }
 
-    const host = this.state.hostId ? this.state.players.get(this.state.hostId) : null;
-    if (!host?.connected) {
-      this.assignHost();
+    if (claimHost) {
+      this.setRoomHost(playerId!, true);
+    } else if (playerId === this.state.founderId) {
+      this.setRoomHost(playerId!, false);
+    } else {
+      const host = this.state.hostId ? this.state.players.get(this.state.hostId) : null;
+      if (!host?.connected) {
+        this.assignHost();
+      } else {
+        this.syncHostFlags();
+      }
     }
 
     socket.emit("server", {
@@ -153,7 +193,14 @@ export class GameRoom {
     this.state.players.delete(playerId);
 
     if (this.state.hostId === playerId) {
+      if (playerId === this.state.founderId) {
+        this.state.founderId = null;
+      }
       this.assignHost();
+    }
+
+    if (this.state.settings.coopManagerId === playerId) {
+      this.state.settings.coopManagerId = null;
     }
 
     this.broadcastState();
@@ -171,6 +218,18 @@ export class GameRoom {
     }
 
     this.state.settings = { ...this.state.settings, ...settings };
+
+    if (this.state.settings.gameId !== "touchline-coop") {
+      this.state.settings.coopManagerId = null;
+    }
+
+    if (
+      this.state.settings.coopManagerId &&
+      !this.getConnectedPlayers().some((p) => p.id === this.state.settings.coopManagerId)
+    ) {
+      this.state.settings.coopManagerId = null;
+    }
+
     this.broadcastState();
   }
 
@@ -207,9 +266,20 @@ export class GameRoom {
       return;
     }
 
+    if (gameId === "touchline-coop") {
+      const managerId = this.state.settings.coopManagerId;
+      if (!managerId || !players.some((p) => p.id === managerId)) {
+        this.sendError(socket, "Choose who will be Manager before starting");
+        return;
+      }
+    }
+
     this.state.gameState = game.init({
       players,
-      config: { wordPackId: this.state.settings.wordPackId },
+      config: {
+        wordPackId: this.state.settings.wordPackId,
+        coopManagerId: this.state.settings.coopManagerId,
+      },
     });
     this.state.phase = "playing";
     this.broadcastState();

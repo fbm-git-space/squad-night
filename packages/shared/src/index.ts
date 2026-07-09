@@ -28,6 +28,8 @@ export type RoomPhase = "lobby" | "playing" | "finished";
 export interface RoomSettings {
   gameId: string | null;
   wordPackId: string | null;
+  /** Co-op mode: player id who will be manager (partner is the other player). */
+  coopManagerId: string | null;
 }
 
 export interface RoomSnapshot {
@@ -43,6 +45,8 @@ export interface ClientMessage {
   type: "join" | "leave" | "update_settings" | "start_game" | "game_action" | "return_to_lobby";
   playerId?: string;
   name?: string;
+  /** Set when navigating from Create Room — this player owns the room. */
+  claimHost?: boolean;
   settings?: Partial<RoomSettings>;
   action?: unknown;
 }

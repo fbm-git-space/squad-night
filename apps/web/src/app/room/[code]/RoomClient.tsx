@@ -16,6 +16,7 @@ export default function RoomPage({
 }) {
   const { code } = use(params);
   const searchParams = useSearchParams();
+  const claimHost = searchParams.get("host") === "1";
   const [playerName, setPlayerName] = useState("");
   const [nameReady, setNameReady] = useState(false);
 
@@ -38,6 +39,7 @@ export default function RoomPage({
   } = useRoom({
     roomCode: code,
     playerName,
+    claimHost,
   });
 
   if (!nameReady) {

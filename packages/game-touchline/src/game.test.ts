@@ -55,16 +55,14 @@ describe("initTouchline", () => {
 const twoPlayers: Player[] = mockPlayers.slice(0, 2);
 
 describe("initTouchlineCoop", () => {
-  it("assigns manager and partner roles", () => {
+  it("assigns manager and partner from config", () => {
     const state = initTouchlineCoop({
       players: twoPlayers,
-      config: { wordPackId: "legends" },
+      config: { wordPackId: "legends", coopManagerId: twoPlayers[0].id },
     });
     expect(state.mode).toBe("coop");
-    expect(state.homeTeamIds).toHaveLength(2);
-    expect(state.awayTeamIds).toHaveLength(0);
-    expect(state.coopOperativeId).toBeTruthy();
-    expect(state.homeManagerId).not.toBe(state.coopOperativeId);
+    expect(state.homeManagerId).toBe(twoPlayers[0].id);
+    expect(state.coopOperativeId).toBe(twoPlayers[1].id);
   });
 });
 
@@ -72,7 +70,7 @@ describe("co-op mode", () => {
   it("operative guesses, manager does not", () => {
     const state = initTouchlineCoop({
       players: twoPlayers,
-      config: { wordPackId: "legends" },
+      config: { wordPackId: "legends", coopManagerId: twoPlayers[0].id },
     });
     let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
     if ("error" in s) throw new Error(s.error);
@@ -85,7 +83,7 @@ describe("co-op mode", () => {
   it("assassin ends the game with no winner", () => {
     const state = initTouchlineCoop({
       players: twoPlayers,
-      config: { wordPackId: "legends" },
+      config: { wordPackId: "legends", coopManagerId: twoPlayers[0].id },
     });
     const assassinCard = state.grid.find((c) => c.type === "assassin");
     let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);

@@ -18,6 +18,13 @@ export default function HomePage() {
     const trimmed = name.trim();
     if (!trimmed) return;
     localStorage.setItem(NAME_STORAGE_KEY, trimmed);
+    router.push(`/room/${code.toUpperCase()}?name=${encodeURIComponent(trimmed)}&host=1`);
+  }
+
+  function saveNameAndJoin(code: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    localStorage.setItem(NAME_STORAGE_KEY, trimmed);
     router.push(`/room/${code.toUpperCase()}?name=${encodeURIComponent(trimmed)}`);
   }
 
@@ -29,7 +36,7 @@ export default function HomePage() {
     e.preventDefault();
     const code = joinCode.trim().toUpperCase();
     if (code.length !== 6) return;
-    saveNameAndGo(code);
+    saveNameAndJoin(code);
   }
 
   return (

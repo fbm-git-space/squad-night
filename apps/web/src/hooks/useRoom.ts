@@ -15,9 +15,10 @@ import {
 interface UseRoomOptions {
   roomCode: string;
   playerName: string;
+  claimHost?: boolean;
 }
 
-export function useRoom({ roomCode, playerName }: UseRoomOptions) {
+export function useRoom({ roomCode, playerName, claimHost = false }: UseRoomOptions) {
   const socketRef = useRef<Socket | null>(null);
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export function useRoom({ roomCode, playerName }: UseRoomOptions) {
         type: "join",
         playerId: storedId,
         name: trimmedName,
+        claimHost,
       });
     });
 
@@ -68,10 +70,14 @@ export function useRoom({ roomCode, playerName }: UseRoomOptions) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [roomCode, playerName]);
+  }, [roomCode, playerName, claimHost]);
 
   const updateSettings = useCallback(
-    (settings: { gameId?: string | null; wordPackId?: string | null }) => {
+    (settings: {
+      gameId?: string | null;
+      wordPackId?: string | null;
+      coopManagerId?: string | null;
+    }) => {
       if (!socketRef.current) return;
       sendMessage(socketRef.current, { type: "update_settings", settings });
     },
