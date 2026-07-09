@@ -2,6 +2,8 @@
 
 interface HowToPlayProps {
   compact?: boolean;
+  /** Omit outer card wrapper — for use inside a &lt;details&gt; panel */
+  embedded?: boolean;
 }
 
 function ColourKey() {
@@ -27,10 +29,10 @@ function ColourKey() {
   );
 }
 
-export function HowToPlay({ compact = false }: HowToPlayProps) {
+export function HowToPlay({ compact = false, embedded = false }: HowToPlayProps) {
   if (compact) {
-    return (
-      <div className="card-surface p-4 space-y-2 text-sm text-white/70">
+    const content = (
+      <>
         <p className="font-semibold text-white/90">Quick rules</p>
         <ul className="space-y-1.5 list-disc list-inside marker:text-pitch-light">
           <li>Two teams — find all your coloured words first to win.</li>
@@ -42,6 +44,16 @@ export function HowToPlay({ compact = false }: HowToPlayProps) {
         </ul>
         <p className="text-xs text-white/40 pt-1">Managers — colour key:</p>
         <ColourKey />
+      </>
+    );
+
+    if (embedded) {
+      return <div className="space-y-2 text-sm text-white/70 pt-2">{content}</div>;
+    }
+
+    return (
+      <div className="card-surface p-4 space-y-2 text-sm text-white/70">
+        {content}
       </div>
     );
   }

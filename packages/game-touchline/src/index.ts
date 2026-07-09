@@ -108,6 +108,10 @@ export function reduceTouchline(
       if (role !== "manager") {
         return { error: "Only managers can start the game" };
       }
+      const team = getPlayerTeam(state, playerId);
+      if (team !== state.currentTeam) {
+        return { error: "Wait for the other team's manager" };
+      }
       return {
         ...state,
         phase: "clue",
@@ -286,6 +290,7 @@ export function getTouchlineView(
     awayManagerName: awayManager?.name ?? "Away Manager",
     winner: state.winner,
     turnMessage: state.turnMessage,
+    lastGuessCardId: state.lastGuessCardId,
     canAct: canGiveClue || canGuess,
     canGuess,
     canSeeColors,

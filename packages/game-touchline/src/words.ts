@@ -21,7 +21,7 @@ export const WORD_PACKS: WordPack[] = [
       "Owen", "Torres", "Villa", "Xabi Alonso", "Fabregas", "Pirlo", "Totti", "Cannavaro",
       "Nesta", "Thuram", "Desailly", "Vieira", "Makelele", "Essien", "Robben", "Ribery",
       "Ozil", "Bale", "Hazard", "Courtois", "Alisson", "Ederson", "Van Dijk", "Drogba",
-      "Eto'o", "Samuel", "Yaya", "Pogba", "Griezmann", "Antoine", "Modric", "Rijkaard",
+      "Eto'o", "Samuel", "Yaya", "Pogba", "Griezmann", "Modric", "Rijkaard",
       "Gullit", "Van Basten", "Makélélé", "Seedorf", "Roberto Carlos", "Cafu", "Carlos Alberto",
       "Zico", "Socrates", "Kaka", "Adriano", "Tevez", "Mascherano", "Di Maria", "Higuain",
       "Icardi", "Lukaku", "Son", "Salah", "Mane", "Firmino", "Sturridge", "Suarez",

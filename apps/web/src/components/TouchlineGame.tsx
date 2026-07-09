@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TouchlineView, TouchlineAction } from "@party/game-touchline";
 import type { Player } from "@party/shared";
 import { HowToPlay } from "@/components/HowToPlay";
@@ -11,14 +11,22 @@ interface TouchlineGameProps {
   onAction: (action: TouchlineAction) => void;
   onReturnToLobby: () => void;
   isHost: boolean;
+  hostName: string;
   error?: string | null;
 }
 
 const CARD_TYPE_STYLES: Record<string, string> = {
-  home: "bg-home/80 border-home",
-  away: "bg-away/80 border-away",
-  neutral: "bg-yellow-700/60 border-yellow-600",
-  assassin: "bg-black border-red-600",
+  home: "bg-home border-home",
+  away: "bg-away border-away",
+  neutral: "bg-yellow-600 border-yellow-500",
+  assassin: "bg-black border-red-500",
+};
+
+const REVEALED_TYPE_STYLES: Record<string, string> = {
+  home: "bg-home border-2 border-home text-white shadow-[inset_0_0_0_2px_rgba(255,255,255,0.25)]",
+  away: "bg-away border-2 border-away text-white shadow-[inset_0_0_0_2px_rgba(255,255,255,0.25)]",
+  neutral: "bg-yellow-600 border-2 border-yellow-400 text-white",
+  assassin: "bg-black border-2 border-red-500 text-red-200",
 };
 
 export function TouchlineGame({
@@ -26,12 +34,14 @@ export function TouchlineGame({
   onAction,
   onReturnToLobby,
   isHost,
+  hostName,
   error,
 }: TouchlineGameProps) {
   const [clueCount, setClueCount] = useState(1);
   const [optionalClueWord, setOptionalClueWord] = useState("");
 
-  const isManager = view.role === "manager" || (view.soloTeam && view.phase !== "guessing");
+  const isActiveManager =
+    view.role === "manager" && view.team === view.currentTeam;
   const currentTeamLabel = view.currentTeam === "home" ? "Home" : "Away";
 
   if (view.phase === "finished") {
@@ -45,15 +55,20 @@ export function TouchlineGame({
 
     return (
       <div className="space-y-6 text-center">
+        <ScoreBar view={view} />
         <div className="card-surface p-8 space-y-3">
           <p className="font-display text-5xl text-gold">FULL TIME</p>
           <p className="text-xl">{winMessage}</p>
         </div>
         <Board view={view} onGuess={() => {}} canGuess={false} />
-        {isHost && (
+        {isHost ? (
           <button className="btn-primary w-full" onClick={onReturnToLobby}>
             Back to Lobby
           </button>
+        ) : (
+          <div className="card-surface p-4 text-white/60 text-sm">
+            <p>Waiting for {hostName} to take everyone back to the lobby…</p>
+          </div>
         )}
       </div>
     );
@@ -61,9 +76,19 @@ export function TouchlineGame({
 
   return (
     <div className="space-y-4">
-      <ScoreBar view={view} />
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-pitch/95 backdrop-blur-sm border-b border-white/10">
+        <ScoreBar view={view} />
+      </div>
 
-      {view.phase === "briefing" && <HowToPlay compact />}
+      <details className="card-surface text-sm">
+        <summary className="cursor-pointer px-4 py-3 font-semibold text-white/80 hover:text-white list-none flex items-center justify-between">
+          How to play
+          <span className="text-white/40 text-xs font-normal">tap to open</span>
+        </summary>
+        <div className="px-4 pb-4 border-t border-white/10">
+          <HowToPlay compact embedded />
+        </div>
+      </details>
 
       {view.turnMessage && (
         <p className="text-center text-sm bg-black/30 py-2 px-4 rounded-lg text-white/80">
@@ -71,7 +96,7 @@ export function TouchlineGame({
         </p>
       )}
 
-      {view.phase === "briefing" && isManager && (
+      {view.phase === "briefing" && isActiveManager && (
         <div className="card-surface p-4 space-y-3 text-center">
           <p className="font-semibold">You are the {view.team === "home" ? "Home" : "Away"} Manager</p>
           <p className="text-sm text-white/60">
@@ -88,7 +113,16 @@ export function TouchlineGame({
         </div>
       )}
 
-      {view.phase === "briefing" && !isManager && (
+      {view.phase === "briefing" && view.role === "manager" && view.team !== view.currentTeam && (
+        <div className="card-surface p-4 text-center text-white/60 space-y-2">
+          <p>
+            {currentTeamLabel} manager ({view.currentTeam === "home" ? view.homeManagerName : view.awayManagerName}) is studying the board…
+          </p>
+          <p className="text-sm">You&apos;ll get your turn when it&apos;s {view.team === "home" ? "Home" : "Away"}&apos;s clue phase.</p>
+        </div>
+      )}
+
+      {view.phase === "briefing" && view.role !== "manager" && (
         <div className="card-surface p-4 text-center text-white/60 space-y-2">
           <p>
             You&apos;re on team{" "}
@@ -103,7 +137,7 @@ export function TouchlineGame({
         </div>
       )}
 
-      {view.phase === "clue" && isManager && view.team === view.currentTeam && (
+      {view.phase === "clue" && isActiveManager && (
         <VoiceClueForm
           clueCount={clueCount}
           optionalWord={optionalClueWord}
@@ -120,7 +154,7 @@ export function TouchlineGame({
         />
       )}
 
-      {view.phase === "clue" && !(isManager && view.team === view.currentTeam) && (
+      {view.phase === "clue" && !isActiveManager && (
         <div className="card-surface p-4 text-center space-y-1">
           <p className="text-white/70">
             {currentTeamLabel} manager is giving a clue…
@@ -219,7 +253,7 @@ function ScoreBar({ view }: { view: TouchlineView }) {
         }`}
       >
         <p className="text-home font-semibold">Home</p>
-        <p className="font-display text-2xl">{view.homeRemaining}</p>
+        <p className="font-display text-3xl">{view.homeRemaining}</p>
       </div>
       <div
         className={`flex-1 py-2 rounded-lg ${
@@ -227,7 +261,7 @@ function ScoreBar({ view }: { view: TouchlineView }) {
         }`}
       >
         <p className="text-away font-semibold">Away</p>
-        <p className="font-display text-2xl">{view.awayRemaining}</p>
+        <p className="font-display text-3xl">{view.awayRemaining}</p>
       </div>
     </div>
   );
@@ -242,28 +276,62 @@ function Board({
   canGuess: boolean;
   onGuess: (id: number) => void;
 }) {
+  const [flashId, setFlashId] = useState<number | null>(null);
+  const prevGuessRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const id = view.lastGuessCardId;
+    if (id !== null && id !== prevGuessRef.current) {
+      prevGuessRef.current = id;
+      setFlashId(id);
+      const timer = setTimeout(() => setFlashId(null), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [view.lastGuessCardId]);
+
   return (
     <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
       {view.grid.map((card) => {
-        const typeStyle =
-          card.revealed && card.type
-            ? CARD_TYPE_STYLES[card.type]
-            : card.type && view.canSeeColors
-              ? CARD_TYPE_STYLES[card.type] + " opacity-90"
-              : "bg-white/10 border-white/20";
+        const isFlashing = flashId === card.id;
+        const revealedStyle =
+          card.revealed && card.type ? REVEALED_TYPE_STYLES[card.type] : null;
+        const hiddenStyle =
+          !card.revealed && card.type && view.canSeeColors
+            ? CARD_TYPE_STYLES[card.type] + " opacity-90"
+            : "bg-white/10 border-white/20";
 
         return (
           <button
             key={card.id}
             disabled={!canGuess || card.revealed}
             onClick={() => onGuess(card.id)}
-            className={`aspect-square rounded-lg border text-[0.6rem] sm:text-xs font-semibold p-1 transition-all leading-tight ${typeStyle} ${
+            className={`relative aspect-square rounded-lg border text-[0.6rem] sm:text-xs font-semibold p-1 transition-all duration-300 leading-tight ${
+              revealedStyle ?? hiddenStyle
+            } ${
               canGuess && !card.revealed
                 ? "hover:scale-105 hover:ring-2 hover:ring-gold cursor-pointer"
                 : ""
-            } ${card.revealed ? "opacity-70" : ""}`}
+            } ${card.revealed ? "scale-[0.97] saturate-150" : ""} ${
+              isFlashing ? "animate-pulse ring-4 ring-white z-10 scale-105" : ""
+            }`}
           >
-            {card.word}
+            {card.revealed && card.type && (
+              <span
+                className="absolute inset-0 rounded-lg opacity-30 pointer-events-none"
+                aria-hidden
+                style={{
+                  background:
+                    card.type === "home"
+                      ? "repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px)"
+                      : card.type === "away"
+                        ? "repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.2) 4px, rgba(255,255,255,0.2) 8px)"
+                        : undefined,
+                }}
+              />
+            )}
+            <span className={card.revealed ? "line-through decoration-2 opacity-90" : ""}>
+              {card.word}
+            </span>
           </button>
         );
       })}

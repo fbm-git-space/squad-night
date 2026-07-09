@@ -100,6 +100,9 @@ export default function RoomPage({
           onAction={sendGameAction}
           onReturnToLobby={returnToLobby}
           isHost={playerId === room.hostId}
+          hostName={
+            room.players.find((p) => p.id === room.hostId)?.name ?? "the host"
+          }
           error={error}
         />
       ) : (

@@ -10,6 +10,7 @@ import { join, relative, posix } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
 const REPO_NAME = process.argv[2] || "squad-night";
+const COMMIT_MESSAGE = process.argv[3] || "Update Squad Night";
 const API = "https://api.github.com";
 
 const SKIP_DIRS = new Set([
@@ -161,7 +162,7 @@ async function main() {
   const commit = await api(token, `/repos/${owner}/${REPO_NAME}/git/commits`, {
     method: "POST",
     body: JSON.stringify({
-      message: "Initial Squad Night party games",
+      message: COMMIT_MESSAGE,
       tree: treeRes.sha,
       ...(parentSha ? { parents: [parentSha] } : {}),
     }),

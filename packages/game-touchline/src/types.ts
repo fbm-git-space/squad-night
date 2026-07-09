@@ -62,6 +62,7 @@ export interface TouchlineView {
   awayManagerName: string;
   winner: TeamId | null;
   turnMessage: string | null;
+  lastGuessCardId: number | null;
   canAct: boolean;
   canGuess: boolean;
   canSeeColors: boolean;
