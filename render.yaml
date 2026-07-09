@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: squad-night-server
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @party/shared build && pnpm --filter @party/game-core build && pnpm --filter @party/game-touchline build && pnpm --filter @party/server build
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

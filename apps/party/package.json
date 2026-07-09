@@ -1,0 +1,19 @@
+{
+  "name": "@party/party",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "partykit dev",
+    "deploy": "partykit deploy"
+  },
+  "dependencies": {
+    "@party/game-core": "workspace:*",
+    "@party/game-touchline": "workspace:*",
+    "@party/shared": "workspace:*",
+    "partykit": "^0.0.115"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

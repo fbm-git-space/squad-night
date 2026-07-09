@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pitch: #1a5f3c;
+  --color-pitch-dark: #0f3d26;
+  --color-pitch-light: #2d8f5e;
+  --color-home: #e63946;
+  --color-away: #457b9d;
+  --color-gold: #ffd166;
+  --color-cream: #fefae0;
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: linear-gradient(160deg, var(--color-pitch-dark) 0%, #0a2a1a 50%, #061a10 100%);
+  min-height: 100dvh;
+  color: var(--color-cream);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.card-surface {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border-radius: 1rem;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s;
+  background: linear-gradient(135deg, var(--color-pitch-light), var(--color-pitch));
+  box-shadow: 0 4px 20px rgba(45, 143, 94, 0.4);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-secondary:active {
+  transform: scale(0.95);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.15s;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.input-field:focus {
+  border-color: var(--color-pitch-light);
+  box-shadow: 0 0 0 3px rgba(45, 143, 94, 0.25);
+}
