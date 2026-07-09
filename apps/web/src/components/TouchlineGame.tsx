@@ -40,18 +40,28 @@ export function TouchlineGame({
   const [clueCount, setClueCount] = useState(1);
   const [optionalClueWord, setOptionalClueWord] = useState("");
 
+  const isCoop = view.mode === "coop";
   const isActiveManager =
-    view.role === "manager" && view.team === view.currentTeam;
-  const currentTeamLabel = view.currentTeam === "home" ? "Home" : "Away";
+    view.role === "manager" &&
+    (isCoop || view.team === view.currentTeam);
+  const currentTeamLabel = isCoop
+    ? "Manager"
+    : view.currentTeam === "home"
+      ? "Home"
+      : "Away";
 
   if (view.phase === "finished") {
     const winMessage =
       view.turnMessage ??
-      (view.winner === "home"
-        ? "Home team wins!"
-        : view.winner === "away"
-          ? "Away team wins!"
-          : "Game over");
+      (view.mode === "coop"
+        ? view.winner === "home"
+          ? "You found them all!"
+          : "Game over"
+        : view.winner === "home"
+          ? "Home team wins!"
+          : view.winner === "away"
+            ? "Away team wins!"
+            : "Game over");
 
     return (
       <div className="space-y-6 text-center">
@@ -86,7 +96,7 @@ export function TouchlineGame({
           <span className="text-white/40 text-xs font-normal">tap to open</span>
         </summary>
         <div className="px-4 pb-4 border-t border-white/10">
-          <HowToPlay compact embedded />
+          <HowToPlay compact embedded coop={isCoop} />
         </div>
       </details>
 
@@ -98,7 +108,9 @@ export function TouchlineGame({
 
       {view.phase === "briefing" && isActiveManager && (
         <div className="card-surface p-4 space-y-3 text-center">
-          <p className="font-semibold">You are the {view.team === "home" ? "Home" : "Away"} Manager</p>
+          <p className="font-semibold">
+            {isCoop ? "You are the Manager" : `You are the ${view.team === "home" ? "Home" : "Away"} Manager`}
+          </p>
           <p className="text-sm text-white/60">
             You see every word&apos;s colour. Study the board, then when ready let your team know on party chat and start the clue phase.
           </p>
@@ -108,7 +120,7 @@ export function TouchlineGame({
         </div>
       )}
 
-      {view.phase === "briefing" && view.role === "manager" && view.team !== view.currentTeam && (
+      {view.phase === "briefing" && view.role === "manager" && !isActiveManager && !isCoop && (
         <div className="card-surface p-4 text-center text-white/60 space-y-2">
           <p>
             {currentTeamLabel} manager ({view.currentTeam === "home" ? view.homeManagerName : view.awayManagerName}) is studying the board…
@@ -117,18 +129,29 @@ export function TouchlineGame({
         </div>
       )}
 
-      {view.phase === "briefing" && view.role !== "manager" && (
+      {view.phase === "briefing" && view.role === "operative" && (
         <div className="card-surface p-4 text-center text-white/60 space-y-2">
-          <p>
-            You&apos;re on team{" "}
-            <span className={view.team === "home" ? "text-home font-semibold" : "text-away font-semibold"}>
-              {view.team === "home" ? "Home" : view.team === "away" ? "Away" : "—"}
-            </span>
-          </p>
-          <p className="text-sm">Wait for your manager to study the board. Discuss guesses on party chat when it&apos;s your turn.</p>
-          <p className="text-sm mt-1">
-            {view.homeManagerName} (Home) · {view.awayManagerName} (Away)
-          </p>
+          {isCoop ? (
+            <>
+              <p>
+                You&apos;re the <span className="text-gold font-semibold">Partner</span> — you&apos;ll tap words when clues are given.
+              </p>
+              <p className="text-sm">{view.homeManagerName} is studying the board as Manager.</p>
+            </>
+          ) : (
+            <>
+              <p>
+                You&apos;re on team{" "}
+                <span className={view.team === "home" ? "text-home font-semibold" : "text-away font-semibold"}>
+                  {view.team === "home" ? "Home" : view.team === "away" ? "Away" : "—"}
+                </span>
+              </p>
+              <p className="text-sm">Wait for your manager to study the board. Discuss guesses on party chat when it&apos;s your turn.</p>
+              <p className="text-sm mt-1">
+                {view.homeManagerName} (Home) · {view.awayManagerName} (Away)
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -152,7 +175,7 @@ export function TouchlineGame({
       {view.phase === "clue" && !isActiveManager && (
         <div className="card-surface p-4 text-center space-y-1">
           <p className="text-white/70">
-            {currentTeamLabel} manager is giving a clue…
+            {isCoop ? "Manager is giving a clue…" : `${currentTeamLabel} manager is giving a clue…`}
           </p>
           <p className="text-sm text-white/40">Listen on party chat</p>
         </div>
@@ -212,7 +235,9 @@ function ClueBanner({
         </>
       ) : (
         <>
-          <p className="text-sm text-white/50">{currentTeamLabel} manager&apos;s clue</p>
+          <p className="text-sm text-white/50">
+            {view.mode === "coop" ? "Manager's clue" : `${currentTeamLabel} manager's clue`}
+          </p>
           <p className="font-display text-3xl text-gold tracking-wide">
             🎤 Party chat · {count}
           </p>
@@ -232,6 +257,15 @@ function ClueBanner({
 }
 
 function ScoreBar({ view }: { view: TouchlineView }) {
+  if (view.mode === "coop") {
+    return (
+      <div className="text-center py-2 rounded-lg bg-home/20 ring-2 ring-home">
+        <p className="text-home font-semibold text-sm">Words to find</p>
+        <p className="font-display text-3xl">{view.homeRemaining}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-2 text-center text-sm">
       <div
@@ -395,6 +429,20 @@ function VoiceClueForm({
 }
 
 function RoleBadge({ view }: { view: TouchlineView }) {
+  if (view.mode === "coop") {
+    const label =
+      view.role === "manager"
+        ? "Manager"
+        : view.role === "operative"
+          ? "Partner"
+          : "Spectator";
+    return (
+      <p className="text-center text-xs text-white/40">
+        {label} · {view.wordPackName} · Co-op
+      </p>
+    );
+  }
+
   const teamLabel =
     view.team === "home" ? "Home" : view.team === "away" ? "Away" : null;
   const labels = {

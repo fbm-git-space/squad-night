@@ -202,6 +202,11 @@ export class GameRoom {
       return;
     }
 
+    if (players.length > game.maxPlayers) {
+      this.sendError(socket, `Maximum ${game.maxPlayers} players for this game`);
+      return;
+    }
+
     this.state.gameState = game.init({
       players,
       config: { wordPackId: this.state.settings.wordPackId },

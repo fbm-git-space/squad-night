@@ -80,6 +80,14 @@ export const GAMES = [
     minPlayers: 4,
     maxPlayers: 8,
   },
+  {
+    id: "touchline-coop",
+    name: "Touchline Clues — Co-op",
+    description:
+      "Two players vs the board. Manager sees colours and gives clues; partner guesses. Find all your words — avoid the assassin!",
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
 ] as const;
 
 export type GameId = (typeof GAMES)[number]["id"];

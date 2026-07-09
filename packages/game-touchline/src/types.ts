@@ -16,12 +16,17 @@ export type GamePhase =
   | "turn_end"
   | "finished";
 
+export type GameMode = "teams" | "coop";
+
 export interface TouchlineState {
   phase: GamePhase;
+  mode: GameMode;
   wordPackId: string;
   grid: GridCard[];
   homeManagerId: string;
   awayManagerId: string;
+  /** Co-op only — the guessing partner (not a manager). */
+  coopOperativeId: string | null;
   homeTeamIds: string[];
   awayTeamIds: string[];
   homeRemaining: number;
@@ -50,6 +55,7 @@ export interface TouchlineCardView {
 
 export interface TouchlineView {
   phase: GamePhase;
+  mode: GameMode;
   role: "manager" | "operative" | "spectator";
   team: TeamId | null;
   grid: TouchlineCardView[];
@@ -100,6 +106,11 @@ export function getPlayerRole(
   state: TouchlineState,
   playerId: string
 ): "manager" | "operative" | "spectator" {
+  if (state.mode === "coop") {
+    if (playerId === state.homeManagerId) return "manager";
+    if (playerId === state.coopOperativeId) return "operative";
+    return "spectator";
+  }
   if (playerId === state.homeManagerId || playerId === state.awayManagerId) {
     return "manager";
   }
@@ -110,6 +121,12 @@ export function getPlayerTeam(
   state: TouchlineState,
   playerId: string
 ): TeamId | null {
+  if (state.mode === "coop") {
+    if (playerId === state.homeManagerId || playerId === state.coopOperativeId) {
+      return "home";
+    }
+    return null;
+  }
   if (state.homeTeamIds.includes(playerId)) return "home";
   if (state.awayTeamIds.includes(playerId)) return "away";
   return null;
@@ -118,6 +135,7 @@ export function getPlayerTeam(
 export function isManagerTurn(state: TouchlineState, playerId: string): boolean {
   const role = getPlayerRole(state, playerId);
   if (role !== "manager") return false;
+  if (state.mode === "coop") return state.phase === "clue";
   const team = getPlayerTeam(state, playerId);
   return team === state.currentTeam && state.phase === "clue";
 }

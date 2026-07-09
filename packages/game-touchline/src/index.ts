@@ -12,6 +12,7 @@ import {
   type TouchlineAction,
   type TouchlineState,
   type TouchlineView,
+  type GameMode,
   GRID_SIZE,
 } from "./types.js";
 import { getWordPack, pickWords } from "./words.js";
@@ -46,21 +47,29 @@ function assignTeams(players: Player[]): {
   };
 }
 
-export function initTouchline(context: GameContext): TouchlineState {
-  const wordPackId = (context.config.wordPackId as string) ?? "legends";
-  const words = pickWords(wordPackId, GRID_SIZE);
-  const grid = createGrid(words);
-  const { homeManagerId, awayManagerId, homeTeamIds, awayTeamIds } =
-    assignTeams(context.players);
-
+function buildBaseState(
+  wordPackId: string,
+  grid: GridCard[],
+  mode: GameMode,
+  teams: {
+    homeManagerId: string;
+    awayManagerId: string;
+    coopOperativeId: string | null;
+    homeTeamIds: string[];
+    awayTeamIds: string[];
+  },
+  turnMessage: string
+): TouchlineState {
   return {
     phase: "briefing",
+    mode,
     wordPackId,
     grid,
-    homeManagerId,
-    awayManagerId,
-    homeTeamIds,
-    awayTeamIds,
+    homeManagerId: teams.homeManagerId,
+    awayManagerId: teams.awayManagerId,
+    coopOperativeId: teams.coopOperativeId,
+    homeTeamIds: teams.homeTeamIds,
+    awayTeamIds: teams.awayTeamIds,
     homeRemaining: countRemaining(grid, "home"),
     awayRemaining: countRemaining(grid, "away"),
     currentTeam: "home",
@@ -68,8 +77,56 @@ export function initTouchline(context: GameContext): TouchlineState {
     currentClue: null,
     lastGuessCardId: null,
     winner: null,
-    turnMessage: "Home team goes first. Managers study the board, then start the clue phase.",
+    turnMessage,
   };
+}
+
+export function initTouchline(context: GameContext): TouchlineState {
+  const wordPackId = (context.config.wordPackId as string) ?? "legends";
+  const words = pickWords(wordPackId, GRID_SIZE);
+  const grid = createGrid(words);
+  const { homeManagerId, awayManagerId, homeTeamIds, awayTeamIds } =
+    assignTeams(context.players);
+
+  return buildBaseState(
+    wordPackId,
+    grid,
+    "teams",
+    {
+      homeManagerId,
+      awayManagerId,
+      coopOperativeId: null,
+      homeTeamIds,
+      awayTeamIds,
+    },
+    "Home team goes first. Managers study the board, then start the clue phase."
+  );
+}
+
+export function initTouchlineCoop(context: GameContext): TouchlineState {
+  if (context.players.length !== 2) {
+    throw new Error("Co-op mode requires exactly 2 players");
+  }
+  const wordPackId = (context.config.wordPackId as string) ?? "legends";
+  const words = pickWords(wordPackId, GRID_SIZE);
+  const grid = createGrid(words);
+  const shuffled = [...context.players].sort(() => Math.random() - 0.5);
+  const manager = shuffled[0];
+  const operative = shuffled[1];
+
+  return buildBaseState(
+    wordPackId,
+    grid,
+    "coop",
+    {
+      homeManagerId: manager.id,
+      awayManagerId: operative.id,
+      coopOperativeId: operative.id,
+      homeTeamIds: [manager.id, operative.id],
+      awayTeamIds: [],
+    },
+    "Co-op: find all green words together. Manager studies the board, then starts the clue phase."
+  );
 }
 
 function revealCard(grid: GridCard[], cardId: number): GridCard[] {
@@ -77,6 +134,17 @@ function revealCard(grid: GridCard[], cardId: number): GridCard[] {
 }
 
 function endTurn(state: TouchlineState, message: string): TouchlineState {
+  if (state.mode === "coop") {
+    return {
+      ...state,
+      phase: "clue",
+      currentTeam: "home",
+      guessesRemaining: 0,
+      currentClue: null,
+      lastGuessCardId: null,
+      turnMessage: message,
+    };
+  }
   const nextTeam: TeamId = state.currentTeam === "home" ? "away" : "home";
   return {
     ...state,
@@ -108,13 +176,16 @@ export function reduceTouchline(
         return { error: "Only managers can start the game" };
       }
       const team = getPlayerTeam(state, playerId);
-      if (team !== state.currentTeam) {
+      if (state.mode !== "coop" && team !== state.currentTeam) {
         return { error: "Wait for the other team's manager" };
       }
       return {
         ...state,
         phase: "clue",
-        turnMessage: `${state.currentTeam === "home" ? "Home" : "Away"} manager — give your clue!`,
+        turnMessage:
+          state.mode === "coop"
+            ? "Manager — give your clue!"
+            : `${state.currentTeam === "home" ? "Home" : "Away"} manager — give your clue!`,
       };
     }
 
@@ -154,6 +225,19 @@ export function reduceTouchline(
       const awayRemaining = countRemaining(grid, "away");
 
       if (card.type === "assassin") {
+        if (state.mode === "coop") {
+          return {
+            ...state,
+            grid,
+            phase: "finished",
+            winner: null,
+            homeRemaining,
+            awayRemaining,
+            guessesRemaining: 0,
+            lastGuessCardId: action.cardId,
+            turnMessage: "You hit the assassin — game over!",
+          };
+        }
         const losingTeam = state.currentTeam;
         const winningTeam = losingTeam === "home" ? "away" : "home";
         const losingLabel = losingTeam === "home" ? "Home" : "Away";
@@ -181,11 +265,12 @@ export function reduceTouchline(
           awayRemaining,
           guessesRemaining: 0,
           lastGuessCardId: action.cardId,
-          turnMessage: "Home team wins!",
+          turnMessage:
+            state.mode === "coop" ? "You found them all — well played!" : "Home team wins!",
         };
       }
 
-      if (card.type === "away" && awayRemaining === 0) {
+      if (state.mode !== "coop" && card.type === "away" && awayRemaining === 0) {
         return {
           ...state,
           grid,
@@ -200,13 +285,25 @@ export function reduceTouchline(
       }
 
       const guessesRemaining = state.guessesRemaining - 1;
-      const wrongGuess = card.type !== state.currentTeam;
+      const wrongGuess =
+        state.mode === "coop"
+          ? card.type !== "home"
+          : card.type !== state.currentTeam;
 
       if (wrongGuess || guessesRemaining <= 0) {
-        const teamLabel = state.currentTeam === "home" ? "Home" : "Away";
+        const teamLabel =
+          state.mode === "coop"
+            ? "Wrong word"
+            : state.currentTeam === "home"
+              ? "Home"
+              : "Away";
         const reason = wrongGuess
-          ? `${teamLabel} picked a wrong word — turn over.`
-          : `${teamLabel} used all guesses.`;
+          ? state.mode === "coop"
+            ? "That wasn't one of your words — try again."
+            : `${teamLabel} picked a wrong word — turn over.`
+          : state.mode === "coop"
+            ? "Out of guesses — manager's turn again."
+            : `${teamLabel} used all guesses.`;
         return endTurn(
           {
             ...state,
@@ -234,7 +331,12 @@ export function reduceTouchline(
       if (!isOperativeTurn(state, playerId)) {
         return { error: "You cannot pass right now" };
       }
-      const teamLabel = state.currentTeam === "home" ? "Home" : "Away";
+      const teamLabel =
+        state.mode === "coop"
+          ? "Partner"
+          : state.currentTeam === "home"
+            ? "Home"
+            : "Away";
       return endTurn(state, `${teamLabel} passed.`);
     }
 
@@ -256,6 +358,9 @@ export function getTouchlineView(
 
   const homeManager = players.find((p) => p.id === state.homeManagerId);
   const awayManager = players.find((p) => p.id === state.awayManagerId);
+  const coopPartner = state.coopOperativeId
+    ? players.find((p) => p.id === state.coopOperativeId)
+    : null;
 
   const grid = state.grid.map((card) => ({
     id: card.id,
@@ -269,6 +374,7 @@ export function getTouchlineView(
 
   return {
     phase: state.phase,
+    mode: state.mode,
     role,
     team,
     grid,
@@ -277,8 +383,14 @@ export function getTouchlineView(
     currentTeam: state.currentTeam,
     guessesRemaining: state.guessesRemaining,
     currentClue: state.currentClue,
-    homeManagerName: homeManager?.name ?? "Home Manager",
-    awayManagerName: awayManager?.name ?? "Away Manager",
+    homeManagerName:
+      state.mode === "coop"
+        ? homeManager?.name ?? "Manager"
+        : homeManager?.name ?? "Home Manager",
+    awayManagerName:
+      state.mode === "coop"
+        ? coopPartner?.name ?? "Partner"
+        : awayManager?.name ?? "Away Manager",
     winner: state.winner,
     turnMessage: state.turnMessage,
     lastGuessCardId: state.lastGuessCardId,
@@ -299,6 +411,19 @@ registerGame({
   minPlayers: 4,
   maxPlayers: 8,
   init: initTouchline,
+  reduce: reduceTouchline,
+  getView: (state, playerId) => {
+    throw new Error("Use getTouchlineView with players list");
+  },
+  isFinished: isTouchlineFinished,
+});
+
+registerGame({
+  id: "touchline-coop",
+  name: "Touchline Clues — Co-op",
+  minPlayers: 2,
+  maxPlayers: 2,
+  init: initTouchlineCoop,
   reduce: reduceTouchline,
   getView: (state, playerId) => {
     throw new Error("Use getTouchlineView with players list");

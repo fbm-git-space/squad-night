@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initTouchline, reduceTouchline, getTouchlineView } from "./index.js";
+import { initTouchline, initTouchlineCoop, reduceTouchline, getTouchlineView } from "./index.js";
 import type { Player } from "@party/shared";
 import { createGrid, validateClue, isOperativeTurn } from "./types.js";
 
@@ -49,6 +49,58 @@ describe("initTouchline", () => {
     });
     expect(state.homeTeamIds).toHaveLength(2);
     expect(state.awayTeamIds).toHaveLength(2);
+  });
+});
+
+const twoPlayers: Player[] = mockPlayers.slice(0, 2);
+
+describe("initTouchlineCoop", () => {
+  it("assigns manager and partner roles", () => {
+    const state = initTouchlineCoop({
+      players: twoPlayers,
+      config: { wordPackId: "legends" },
+    });
+    expect(state.mode).toBe("coop");
+    expect(state.homeTeamIds).toHaveLength(2);
+    expect(state.awayTeamIds).toHaveLength(0);
+    expect(state.coopOperativeId).toBeTruthy();
+    expect(state.homeManagerId).not.toBe(state.coopOperativeId);
+  });
+});
+
+describe("co-op mode", () => {
+  it("operative guesses, manager does not", () => {
+    const state = initTouchlineCoop({
+      players: twoPlayers,
+      config: { wordPackId: "legends" },
+    });
+    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    expect(isOperativeTurn(s, state.coopOperativeId!)).toBe(true);
+    expect(isOperativeTurn(s, state.homeManagerId)).toBe(false);
+  });
+
+  it("assassin ends the game with no winner", () => {
+    const state = initTouchlineCoop({
+      players: twoPlayers,
+      config: { wordPackId: "legends" },
+    });
+    const assassinCard = state.grid.find((c) => c.type === "assassin");
+    let s = reduceTouchline(state, { type: "ready" }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    s = reduceTouchline(s, { type: "give_clue", word: "", count: 1 }, state.homeManagerId);
+    if ("error" in s) throw new Error(s.error);
+    const result = reduceTouchline(
+      s,
+      { type: "guess", cardId: assassinCard!.id },
+      state.coopOperativeId!
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.phase).toBe("finished");
+    expect(result.winner).toBeNull();
+    expect(result.turnMessage).toContain("assassin");
   });
 });
 

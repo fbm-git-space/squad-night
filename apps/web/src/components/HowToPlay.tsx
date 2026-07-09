@@ -2,6 +2,7 @@
 
 interface HowToPlayProps {
   compact?: boolean;
+  coop?: boolean;
   /** Omit outer card wrapper — for use inside a &lt;details&gt; panel */
   embedded?: boolean;
 }
@@ -29,9 +30,22 @@ function ColourKey() {
   );
 }
 
-export function HowToPlay({ compact = false, embedded = false }: HowToPlayProps) {
+export function HowToPlay({ compact = false, coop = false, embedded = false }: HowToPlayProps) {
   if (compact) {
-    const content = (
+    const content = coop ? (
+      <>
+        <p className="font-semibold text-white/90">Co-op rules (2 players)</p>
+        <ul className="space-y-1.5 list-disc list-inside marker:text-pitch-light">
+          <li>You&apos;re on the same side — find all <strong className="text-home">green</strong> words on the board.</li>
+          <li><strong className="text-white/90">Manager</strong> sees every colour. <strong className="text-white/90">Partner</strong> taps guesses.</li>
+          <li>Clues on party chat: one word + number, then <strong className="text-white/90">Start guessing</strong> in the app.</li>
+          <li>Wrong tap (red, tan, etc.) — turn ends, try again.</li>
+          <li>Hit the <strong className="text-white/90">assassin</strong> (black) — you both lose.</li>
+        </ul>
+        <p className="text-xs text-white/40 pt-1">Manager — colour key:</p>
+        <ColourKey />
+      </>
+    ) : (
       <>
         <p className="font-semibold text-white/90">Quick rules</p>
         <ul className="space-y-1.5 list-disc list-inside marker:text-pitch-light">

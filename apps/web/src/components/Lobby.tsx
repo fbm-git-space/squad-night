@@ -17,7 +17,14 @@ export function Lobby({ room, playerId, onUpdateSettings, onStart, error }: Lobb
   const isHost = playerId === room.hostId;
   const game = GAMES.find((g) => g.id === room.settings.gameId);
   const connectedCount = room.players.filter((p) => p.connected).length;
-  const canStart = isHost && game && connectedCount >= game.minPlayers;
+  const canStart =
+    isHost &&
+    game &&
+    connectedCount >= game.minPlayers &&
+    connectedCount <= game.maxPlayers;
+
+  const fitsPlayerCount = (g: (typeof GAMES)[number]) =>
+    connectedCount >= g.minPlayers && connectedCount <= g.maxPlayers;
 
   return (
     <div className="space-y-6">
@@ -65,7 +72,10 @@ export function Lobby({ room, playerId, onUpdateSettings, onStart, error }: Lobb
         </ul>
       </div>
 
-      {room.settings.gameId === "touchline" && <HowToPlay compact />}
+      {(room.settings.gameId === "touchline" ||
+        room.settings.gameId === "touchline-coop") && (
+        <HowToPlay compact coop={room.settings.gameId === "touchline-coop"} />
+      )}
 
       {isHost ? (
         <div className="card-surface p-4 space-y-4">
@@ -73,26 +83,35 @@ export function Lobby({ room, playerId, onUpdateSettings, onStart, error }: Lobb
 
           <div className="space-y-2">
             <p className="text-sm text-white/50">Game</p>
-            {GAMES.map((g) => (
+            {GAMES.map((g) => {
+              const fits = fitsPlayerCount(g);
+              return (
               <button
                 key={g.id}
-                onClick={() => onUpdateSettings({ gameId: g.id })}
+                onClick={() => fits && onUpdateSettings({ gameId: g.id })}
+                disabled={!fits}
                 className={`w-full text-left p-4 rounded-xl transition-all border ${
                   room.settings.gameId === g.id
                     ? "border-pitch-light bg-pitch/30"
-                    : "border-white/10 bg-black/20 hover:bg-black/30"
+                    : fits
+                      ? "border-white/10 bg-black/20 hover:bg-black/30"
+                      : "border-white/5 bg-black/10 opacity-50 cursor-not-allowed"
                 }`}
               >
                 <p className="font-semibold">{g.name}</p>
                 <p className="text-sm text-white/60 mt-1">{g.description}</p>
                 <p className="text-xs text-white/40 mt-2">
                   {g.minPlayers}–{g.maxPlayers} players
+                  {!fits && connectedCount < g.minPlayers && " · need more players"}
+                  {!fits && connectedCount > g.maxPlayers && " · too many players"}
                 </p>
               </button>
-            ))}
+            );
+            })}
           </div>
 
-          {room.settings.gameId === "touchline" && (
+          {room.settings.gameId === "touchline" ||
+          room.settings.gameId === "touchline-coop" ? (
             <div className="space-y-2">
               <p className="text-sm text-white/50">Word pack</p>
               <div className="grid gap-2">
@@ -112,7 +131,7 @@ export function Lobby({ room, playerId, onUpdateSettings, onStart, error }: Lobb
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
           <button
             className="btn-primary w-full disabled:opacity-40"
@@ -121,7 +140,9 @@ export function Lobby({ room, playerId, onUpdateSettings, onStart, error }: Lobb
           >
             {canStart
               ? "Kick Off!"
-              : `Need ${game ? game.minPlayers - connectedCount : 4} more player(s)`}
+              : game && connectedCount > game.maxPlayers
+                ? `Too many players (max ${game.maxPlayers})`
+                : `Need ${game ? Math.max(0, game.minPlayers - connectedCount) : 4} more player(s)`}
           </button>
         </div>
       ) : (

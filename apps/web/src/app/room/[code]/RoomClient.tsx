@@ -89,7 +89,9 @@ export default function RoomPage({
           onStart={startGame}
           error={error}
         />
-      ) : room.settings.gameId === "touchline" && playerId ? (
+      ) : (room.settings.gameId === "touchline" ||
+          room.settings.gameId === "touchline-coop") &&
+        playerId ? (
         <TouchlineGame
           view={getTouchlineView(
             room.gameState as TouchlineState,
